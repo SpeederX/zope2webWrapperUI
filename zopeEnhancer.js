@@ -1,5 +1,37 @@
 class ZopeJSEnhancerAPI {
-
+     customMenuConfig = {
+        "zopeFrameSet": document.body,
+        "triggerAttach": function(){
+            ZopeJSEnhancerAPI.mainObjectInit(this);
+        },
+        "features":{
+            "codeEditor":{
+                "id":"codeEditor",
+                "data-on":"Code editor on",
+                "data-off":"Code editor off",
+                "onClick":function(){
+                    console.log("codeEditor");
+                }
+            },
+            "searchSize":{
+                "id":"searchSize",
+                "data-on":"Search size on",
+                "data-off":"Search size off",
+                "onClick":function(){
+                    // add batch_size to url with an input field to override it
+                    console.log("searchSize");
+                }
+            },
+            "codeInline":{
+                "id":"codeInline",
+                "data-on":"Code spoiler on",
+                "data-off":"Code spoiler off",
+                "onClick":function(){
+                    ZopeJSEnhancerAPI.enableSpoilerCode(this._zope.main.document)
+                }
+            }
+        }
+    };
      dependencies = [{
             "type":"js",
             "url":"https://code.jquery.com/jquery-3.5.1.js"
@@ -19,6 +51,14 @@ class ZopeJSEnhancerAPI {
         {
           "type":"css",
           "url":"https://sol3.diviteldatacenter.com/public/zmi_ace/bootstrap-4.6.0/bootstrap.min.css"
+        },
+        {
+          "type":"js",
+          "url":"https://sol3.diviteldatacenter.com/public/zmi_ace/bootstrap4-toggle.min.js"
+        },
+        {
+          "type":"css",
+          "url":"https://sol3.diviteldatacenter.com/public/zmi_ace/bootstrap4-toggle.min.css"
         },
     ];
 
@@ -45,11 +85,41 @@ class ZopeJSEnhancerAPI {
 //        }
     ];
 
+    zopeMenuDependencies = [{
+            "type":"js",
+            "url":"https://code.jquery.com/jquery-3.5.1.js"
+        },
+        {
+            "type":"js",
+            "url":"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.2/codemirror.min.js"
+        },
+        {
+            "type":"css",
+            "url":"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.2/codemirror.min.css"
+        },
+        {
+          "type":"js",
+          "url":"https://sol3.diviteldatacenter.com/public/zmi_ace/bootstrap-4.6.0/bootstrap.bundle.min.js"
+        },
+        {
+          "type":"css",
+          "url":"https://sol3.diviteldatacenter.com/public/zmi_ace/bootstrap-4.6.0/bootstrap.min.css"
+        },
+        {
+          "type":"js",
+          "url":"https://sol3.diviteldatacenter.com/public/zmi_ace/bootstrap4-toggle.min.js"
+        },
+        {
+          "type":"css",
+          "url":"https://sol3.diviteldatacenter.com/public/zmi_ace/bootstrap4-toggle.min.css"
+        },
+        ];
     constructor(window,document,verboseMode){
         //this.dependencies = ZopeJSEnhancerAPI.getDependencies();
 
         this.verboseMode = verboseMode || false;
         this.isFirstLoad = true;
+        this.customFirstLoad = true;
 
         this.consoleDebug('|------ ZopeJSEnhancerAPI -------|');
         this.consoleDebug('|**------ INIT -------**|');
@@ -68,6 +138,8 @@ class ZopeJSEnhancerAPI {
         this._zope = {};
         this.getZopeReferences();
 
+        //this.generateMenu();
+
         this._zope.main.addEventListener('load',function(){
                 // al caricamento del frame con menù
                 console.log("init zope main");
@@ -82,10 +154,67 @@ class ZopeJSEnhancerAPI {
                 // al caricamento del frame con menù
                 console.log("init zope header");
         });
+        
+
 
         this.consoleDebug('|**------ END -------**|');
 
         return this;
+    }
+    generateCustomMenu(){
+        var newFrameSet = document.createElement('frameset'),
+            newFrame = document.createElement('frame'),
+            istance = this,
+            actualFrameSet = document.body;
+        this._zope.extraMenu = this.customMenuConfig;
+
+        // configuring new frameset and new frame
+        ZopeJSEnhancerAPI.setAttributes(newFrameSet,{
+            'cols':'175,*',
+            'id':'customFrameSet'
+        });
+        newFrame.setAttribute('id','customMenu');
+
+        // appending new menu frame
+        newFrameSet.appendChild(newFrame);
+
+        // appending old frameset to the new one, to include zope as a subobject
+        newFrameSet.appendChild(this._zope.extraMenu.zopeFrameSet);
+
+        //override current document page
+        document.body = newFrameSet;
+
+        // assign object structure
+        this._zope.extraMenu.pageFrameSet = document.querySelectorAll("#customFrameSet")[0];
+        this._zope.extraMenu.zopeEnhanceMenu = document.querySelectorAll("#customMenu")[0];
+    }
+    addMenuFeatures(targetToAttach){
+        var menuTable = document.createElement("table"),
+            menuThead = document.createElement("thead"),
+            menuHeader = document.createElement("th"),
+            menuTbody = document.createElement("tbody");
+
+
+        menuTable.setAttribute('class','table');
+        menuThead.setAttribute('scope','col');
+        menuHeader.innerHTML = 'Funzioni';
+
+        menuThead.append(menuHeader);
+        menuTable.append(menuThead);
+
+        // adding features button to the body of the table
+        for( var featureName in this._zope.extraMenu.features){
+            var menuTr = document.createElement("tr"),
+                menuTd = document.createElement("td"),
+                featureConfig = this._zope.extraMenu.features[featureName];
+
+            // adding features to the actual menu
+            this.addMenuFeature('checkbox',featureConfig,menuTd);
+            menuTr.append(menuTd);
+            menuTbody.append(menuTr);
+        };
+        menuTable.append(menuTbody);
+        targetToAttach.append(menuTable);
     }
     getZopeReferences(){
         // init zope main
@@ -152,7 +281,12 @@ class ZopeJSEnhancerAPI {
             scriptLoaded.addEventListener(
                 "load",
                 function() {
-                    // cancello il penultimo elemento
+                    // loading post functions if there's any
+                    console.log(item);
+                    if(item.hasOwnProperty("postLoad")){// && typeof(item.postLoad) == 'function'){
+                        item.postLoad.call(istance);
+                    }
+                    // slicing current element which has been processed and going to the next one
                     istance.consoleDebug('|**------ Dependency Loaded,Next one -------**|');
                     istance.loadDependency(dependency.slice(1,),refDocument,postLoad);
 
@@ -178,7 +312,6 @@ class ZopeJSEnhancerAPI {
         console.log("postLoadOperations");
     }
     initCodeMirror(docRef){
-        debugger;
         var textArea = this._zope.main.document.querySelectorAll('textarea')[0];
         textArea.setAttribute('data-codemirror-mode','python');
         //var codemirror_python_data=<dtml-var expr="context.get_codemirror_json(REQUEST)">;
@@ -233,8 +366,8 @@ class ZopeJSEnhancerAPI {
 
     }
 
-    mainObjectInit(){
-        var istance = this;
+    static mainObjectInit(istance){
+        //var istance = this;
 //        if(window.$(this._zope.main.document).find("textarea").length){
 //            // se c'è un editor
 ////            var textArea = $(Window.fileListFrameObjB[0].contentDocument).find("textarea")[0];
@@ -244,9 +377,10 @@ class ZopeJSEnhancerAPI {
 //            this.initCodeMirror(this._zope.main.document);
 //        } else {
             // se invece mostriamo la lista dei file
-            this._zope.main.addEventListener('load',function(){
+            istance = istance._zope.main.addEventListener('load',function(){
                 // al caricamento del frame con lista oggetti
                 console.log("manage_main loaded");
+                console.log(this);
                 istance.getZopeReferences();
                 ZopeJSEnhancerAPI.enableSpoilerCode(istance._zope.main.document);
 
@@ -300,9 +434,18 @@ class ZopeJSEnhancerAPI {
 //        },500);
     }
     static setAttributes(el, attrs) {
-          for(var key in attrs) {
-            el.setAttribute(key, attrs[key]);
-          }
+        try{
+              for(var key in attrs) {
+                if(typeof(attrs[key]) == 'function'){
+                    el.key = attrs[key];
+                } else {
+                    el.setAttribute(key, attrs[key]);
+                }
+              }
+        } catch( DOMException )   {
+            console.log('setAttributes',attrs,key,attrs[key]);
+            console.log(DOMException);
+        }
     }
     /* abilitazione della funzionalità per spoilerare il codice in riga della lista oggetti */
     static enableSpoilerCode(doc){
@@ -442,6 +585,63 @@ class ZopeJSEnhancerAPI {
           this.convert_textarea(areas[i], 'xml');
         };
     }
+    getCustomMenuDocument(){
+        return this._zope.extraMenu.zopeEnhanceMenu.contentDocument;
+    }
+    getCustomMenuBody(){
+        return this._zope.extraMenu.zopeEnhanceMenu.contentDocument.body;
+    }
+    getCustomMenu(){
+        return this._zope.extraMenu.zopeEnhanceMenu;
+    }
+    features = {
+    };
+    customMenuInit(){
+        var body = this.getCustomMenuBody();
+
+        //create a table which contains all the features available
+    }
+    /* default configuration for buttons in the menu*/
+    menuDefaultConfig = {
+        "checkbox":{
+                "type":"checkbox",
+                "checked":"",
+                "data-toggle":"toggle",
+                "data-width":"100",
+        }
+    };
+    addMenuFeature(type,config,targetToAttach){
+        // adding new menu toggle
+        var type = type || 'checkbox',
+            config = config || {},
+            targetToAttach = targetToAttach || this.getCustomMenuBody(),
+            feature = document.createElement('input');
+
+        if(typeof(config) !== 'object'){
+            console.error('Object wasn\'t config:',typeof(config));
+            return false;
+        }
+
+        // checking if a default config exists
+        if(this.menuDefaultConfig[type]){
+            // initializing by loading default config
+            ZopeJSEnhancerAPI.setAttributes(feature,this.menuDefaultConfig[type]);
+
+            if(typeof(config.type) !== 'undefined'){
+                delete config.type;
+                console.warn("Type shouldn't be passed within custom config:",typeof(config.type));
+            }
+
+            // then we override with config custom
+            ZopeJSEnhancerAPI.setAttributes(feature,config);
+        } else {
+            console.error('Type not mapped in menuDefaultConfig:',type);
+            return false;
+        }
+
+        //adds the new object to someother
+        targetToAttach.append(feature);
+    }
     convert_textarea(area, mode){
         // Create a form element that will submit the current cursor position
         // This is useful to show the cursor in the same position after save
@@ -569,6 +769,7 @@ function setCookie( name, value, expires, path, domain, secure ) {
     };
     /* definisco dopo aver inizializzato le dipendenze e il costruttore, che cosa fare */
     ZopeJSEnhancerAPI.prototype.postLoadOperations = function(){
+        var istance = this;
         if(this.isFirstLoad){
             this.isFirstLoad = false;
             this.postLoadOperationsCounter = 1;
@@ -577,18 +778,34 @@ function setCookie( name, value, expires, path, domain, secure ) {
 
             // binding eventi al menù
             this.menuObjectInit();
+            this.generateCustomMenu();
 
+//            window.$(ZopeIstance.getCustomMenuDocument()).ready(function(){
+//                console.log("jquery custom menu");
+//            });
+            this.getCustomMenu().addEventListener('load',function(){
+                    istance.addMenuFeatures.call(istance,istance.getCustomMenuBody());
+                    // al caricamento del frame con menù
+                    console.log("init custom menu");
+                    istance.loadDependency.call(istance,istance.zopeMenuDependencies,istance.getCustomMenuDocument(),false);
+            });
             /* binding eventi alla lista oggetti */
-            this.mainObjectInit();
             this.consoleDebug("|------ ended postLoadOperations -------|");
-            ZopeJSEnhancerAPI.enableSpoilerCode(this._zope.main.document);
+//            ZopeJSEnhancerAPI.mainObjectInit();
+//            ZopeJSEnhancerAPI.enableSpoilerCode(this._zope.main.document);
 
             this.consoleDebug("|------ loading extraDependencies -------|");
-            var istance = this;
+
+
+//            this.addMenuFeatures.call(this,this.getCustomMenuBody());
+            // load dependencies for menu
+
+
+
             // load dependencies for all subframes
-            document.querySelectorAll('frame').forEach(function(item){
-                istance.loadDependency(istance.extraDependencies,item.contentDocument,false);
-            });
+//            document.querySelectorAll('frame').forEach(function(item){
+//                istance.loadDependency.call(istance,istance.extraDependencies,item.contentDocument,false);
+//            });
             this.consoleDebug("|------ ended extraDependencies -------|");
         } else {
             this.postLoadOperationsCounter++;
