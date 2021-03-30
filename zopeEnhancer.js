@@ -6,6 +6,7 @@ class ZopeJSEnhancerAPI {
         },
         "features":{
             "codeEditor":{
+                "type":"checkbox",
                 "id":"codeEditor",
                 "data-on":"Code editor on",
                 "data-off":"Code editor off",
@@ -14,15 +15,15 @@ class ZopeJSEnhancerAPI {
                 }
             },
             "searchSize":{
+                "type":"textWButton",
                 "id":"searchSize",
-                "data-on":"Search size on",
-                "data-off":"Search size off",
                 "onClick":function(){
                     // add batch_size to url with an input field to override it
                     console.log("searchSize");
                 }
             },
             "codeInline":{
+                "type":"checkbox",
                 "id":"codeInline",
                 "data-on":"Code spoiler on",
                 "data-off":"Code spoiler off",
@@ -154,7 +155,7 @@ class ZopeJSEnhancerAPI {
                 // al caricamento del frame con menù
                 console.log("init zope header");
         });
-        
+
 
 
         this.consoleDebug('|**------ END -------**|');
@@ -170,7 +171,7 @@ class ZopeJSEnhancerAPI {
 
         // configuring new frameset and new frame
         ZopeJSEnhancerAPI.setAttributes(newFrameSet,{
-            'cols':'175,*',
+            'cols':'200,*',
             'id':'customFrameSet'
         });
         newFrame.setAttribute('id','customMenu');
@@ -209,7 +210,7 @@ class ZopeJSEnhancerAPI {
                 featureConfig = this._zope.extraMenu.features[featureName];
 
             // adding features to the actual menu
-            this.addMenuFeature('checkbox',featureConfig,menuTd);
+            this.addMenuFeature(featureConfig['type'],featureConfig,menuTd);
             menuTr.append(menuTd);
             menuTbody.append(menuTr);
         };
@@ -433,6 +434,36 @@ class ZopeJSEnhancerAPI {
 //            });
 //        },500);
     }
+    // cycles through each depth level and instantiate elements if needed recursively
+    static createElAndSetAttributes(attrs) {
+        if(typeof(attrs) == 'object' && 'element' in attrs){
+            // create new dom element
+            var elementDoc = document.createElement(attrs['element']);
+        } else{
+            console.log("Nothing to create.");
+            console.log(attrs);
+            return ;
+        }
+        // start to assign attributes
+        for(var key in attrs) {
+            console.log(attrs[key]);
+            if(typeof(attrs[key]) == 'object' && 'element' in attrs[key]){
+                // create nested element
+                var newEl = ZopeJSEnhancerAPI.createElAndSetAttributes(attrs[key]);
+                elementDoc.append(newEl);
+            } else {
+                if(key == 'textContent' && 'element' in attrs && attrs['element'] == 'button'){
+                    // assign text to button
+                    elementDoc[key] = attrs[key];
+                } else {
+                    // assigning attribute
+                    elementDoc.setAttribute(key, attrs[key]);
+                }
+            }
+
+        }
+        return elementDoc;
+    }
     static setAttributes(el, attrs) {
         try{
               for(var key in attrs) {
@@ -585,6 +616,18 @@ class ZopeJSEnhancerAPI {
           this.convert_textarea(areas[i], 'xml');
         };
     }
+    getZopeMainFrame(){
+        return this._zope.main;
+    }
+    getZopeMainDocument(){
+        return this._zope.main.contentDocument;
+    }
+    currentMainSearch(){
+        return (this._zope.main.contentDocument.querySelectorAll('[value="Find"]').length > 0);
+    }
+    getCustomMenuDocument(){
+        return this._zope.extraMenu.zopeEnhanceMenu.contentDocument;
+    }
     getCustomMenuDocument(){
         return this._zope.extraMenu.zopeEnhanceMenu.contentDocument;
     }
@@ -604,18 +647,57 @@ class ZopeJSEnhancerAPI {
     /* default configuration for buttons in the menu*/
     menuDefaultConfig = {
         "checkbox":{
+                "element":"input",
                 "type":"checkbox",
                 "checked":"",
                 "data-toggle":"toggle",
-                "data-width":"100",
+                "data-width":"100%",
+        },
+        "text":{
+            "element":"input",
+            "type":"text",
+            "class":"form-control",
+            "placeholder":"Insert some text",
+            "aria-label":"",
+            "aria-describedby":"basic-addon1"
+        },
+        "button":{
+            "element":"button",
+            "type":"button",
+            "class":"btn btn-outline-secondary",
+            "textContent":"Button"
+        },
+        "textWButton":{
+            "element":"div",
+            "class":"input-group mb-3",
+            "subDiv":{
+                "element":"div",
+                "class":"input-group-prepend",
+                "subButton":{
+                    "element":"button",
+                    "type":"button",
+                    "class":"btn btn-outline-secondary",
+                    "textContent":"Apply"
+                },
+            },
+            "subInput":{
+                "element":"input",
+                "type":"text",
+                "class":"form-control",
+                "placeholder":"Insert batch size",
+                "aria-label":"",
+                "aria-describedby":"basic-addon1"
+            },
+            "placeholder":"Insert some text",
+            "aria-label":"",
+            "aria-describedby":"basic-addon1"
         }
     };
     addMenuFeature(type,config,targetToAttach){
         // adding new menu toggle
         var type = type || 'checkbox',
             config = config || {},
-            targetToAttach = targetToAttach || this.getCustomMenuBody(),
-            feature = document.createElement('input');
+            targetToAttach = targetToAttach || this.getCustomMenuBody();
 
         if(typeof(config) !== 'object'){
             console.error('Object wasn\'t config:',typeof(config));
@@ -624,8 +706,13 @@ class ZopeJSEnhancerAPI {
 
         // checking if a default config exists
         if(this.menuDefaultConfig[type]){
-            // initializing by loading default config
-            ZopeJSEnhancerAPI.setAttributes(feature,this.menuDefaultConfig[type]);
+            if(type == 'textWButton'){
+                var feature = ZopeJSEnhancerAPI.createElAndSetAttributes(this.menuDefaultConfig[type]);
+            } else {
+                var feature = document.createElement(this.menuDefaultConfig[type]['element']);
+                // initializing by loading default config
+                ZopeJSEnhancerAPI.setAttributes(feature,this.menuDefaultConfig[type]);
+            }
 
             if(typeof(config.type) !== 'undefined'){
                 delete config.type;
