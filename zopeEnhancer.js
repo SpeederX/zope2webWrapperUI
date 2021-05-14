@@ -98,14 +98,6 @@ class ZopeJSEnhancerAPI {
             "type":"js",
             "url":"https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"
         },
-//        {
-//            "type":"js",
-//            "url":"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.2/codemirror.min.js"
-//        },
-//        {
-//            "type":"css",
-//            "url":"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.2/codemirror.min.css"
-//        },
         {
             "type":"js",
             "url":"https://cdn.jsdelivr.net/npm/table-to-json@1.0.0/lib/jquery.tabletojson.min.js"
@@ -126,6 +118,18 @@ class ZopeJSEnhancerAPI {
           "type":"css",
           "url":"https://sol3.diviteldatacenter.com/public/zmi_ace/bootstrap4-toggle.min.css"
         },
+        {
+          "type":"js",
+          "url":"https://unpkg.com/ace-diff@^3.0.0"
+        },
+        {
+          "type":"css",
+          "url":"https://unpkg.com/ace-diff@^3.0.0/dist/ace-diff.min.css"
+        },
+        {
+          "type":"css",
+          "url":"https://unpkg.com/ace-diff@^3.0.0/dist/ace-diff-dark.min.css"
+        },
     ];
 
     extraDependencies = [
@@ -136,14 +140,7 @@ class ZopeJSEnhancerAPI {
             "type":"js",
             "url":"https://code.jquery.com/jquery-3.5.1.js"
         },
-        {
-            "type":"js",
-            "url":"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.2/codemirror.min.js"
-        },
-        {
-            "type":"css",
-            "url":"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.59.2/codemirror.min.css"
-        },
+
         {
           "type":"js",
           "url":"https://sol3.diviteldatacenter.com/public/zmi_ace/bootstrap-4.6.0/bootstrap.bundle.min.js"
@@ -646,16 +643,43 @@ class ZopeJSEnhancerAPI {
                     sourceTd.setAttribute('colspan','5');
 
                     sourceTextArea.setAttribute('id','codeEditor');
-//                    sourceCode.innerText = xhttp.responseText; // non necessario se si istanzia l'oggetto "code" --> escapeHtml(xhttp.responseText);
-//                    sourcePre.append(sourceCode);
                     sourcePre.innerText = "placeholder";
                     sourcePre.setAttribute('style','overflow-y: scroll;height: 500px');
 
-                    var generatedId = 'codeEditor-'+parseInt(Math.random()*1000000);
-                    sourcePre.setAttribute('class',generatedId);
+                    var generatedId = parseInt(Math.random()*1000000);
+                    sourcePre.setAttribute('class','codeEditor-'+generatedId);
 
-//                    sourceTextArea.value = xhttp.responseText; // non necessario se si istanzia l'oggetto "code" --> escapeHtml(xhttp.responseText);
                     sourceTd.append(sourcePre);
+
+                    var saveBtn = document.createElement("button"),
+                        showDiff = document.createElement("button"),
+                        rollbackModification = document.createElement("button"),
+                        aceDiffDiv = document.createElement("div");
+
+
+                    aceDiffDiv.setAttribute('class','codeDiff-'+generatedId);
+
+                    saveBtn.innerText = 'Salva';
+                    showDiff.innerText = 'Diff';
+                    showDiff.onclick = function(ev){
+                    debugger;
+//                        new AceDiff({
+//                            ace: window.ace, // You Ace Editor instance
+//                            element: this.className,
+//                            left: {
+//                                content: 'your first file content here',
+//                            },
+//                            right: {
+//                                content: 'your second file content here',
+//                            },
+//                        });
+                    };
+                    rollbackModification.innerText = 'Ripristina';
+
+                    sourceTd.append(aceDiffDiv);
+                    sourceTd.append(saveBtn);
+                    sourceTd.append(showDiff);
+                    sourceTd.append(rollbackModification);
 
                     tr.nextElementSibling.append(sourceTd);
 
@@ -682,12 +706,6 @@ class ZopeJSEnhancerAPI {
                     // the corresponding global styling which Ace expects
                     ZopeIstance.addAceCSStoMainHeader();
 
-//                    window.ace.config.loadModule("ace/ext/textarea", function(m) {
-//                        var transform = function(el) {
-//                            if (!el.ace) el.ace = m.transformTextarea(sourceTextArea, ZopeJSEnhancerAPI.aceConfigLcl);
-//                        };
-//                        [sourceTextArea].forEach(transform);
-//                    });
                 }
             };
             xhttp.open("GET", url, true);
