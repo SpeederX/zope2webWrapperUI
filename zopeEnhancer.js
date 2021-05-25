@@ -89,17 +89,36 @@ class ZopeJSEnhancerAPI {
                                 "type":"hidden"
                             });
                             ZopeIstance.getZopeMainDocument().querySelector("form").append(newBatchSizeInput);
+                            //ZopeIstance.getCurrentMainSearch().click()
                         } else {
                             hiddenInput.value = this.querySelector("input").value;
+                            ZopeIstance.getCurrentMainSearch().click();
                         }
+                    }
+                }
+            },
+            "showAll":{
+                "type":"checkbox",
+                "id":"codeInline",
+                "data-on":"Show results",
+                "data-off":"Hide results",
+                "onChange":function(){
+                    // add batch_size to url with an input field to override it
+                    var findButton = ZopeIstance.getCurrentMainSearch();
+                    if(findButton){
+                        // siamo in una pagina con la ricerca attiva?
+                        // cerco tutte le righe che posso aprire e le apro
+                        ZopeIstance.getZopeMainDocument().querySelectorAll(".show_hide").forEach(function(item,index){
+                            item.closest("a").click();
+                        });
                     }
                 }
             },
             "codeInline":{
                 "type":"checkbox",
                 "id":"codeInline",
-                "data-on":"Code spoiler on",
-                "data-off":"Code spoiler off",
+                "data-on":"Enable spoiler",
+                "data-off":"Disable spoiler",
                 "onChange":function(event){
 
                     var isChecked = event.target.checked;
@@ -140,7 +159,7 @@ class ZopeJSEnhancerAPI {
         },
         {
           "type":"js",
-          "url":"https://unpkg.com/ace-diff@^3.0.3"
+          "url":"https://unpkg.com/ace-diff@3.0.3/dist/ace-diff.min.js"
         },
         {
           "type":"css",
@@ -299,11 +318,13 @@ class ZopeJSEnhancerAPI {
                 'onclick':function(){
                     istance.handleHamburger();
                 },
-                'class':'burger'
+                'class':'burger',
+                'style':'padding:10px;'
             }),
         menuTbody = document.createElement("tbody");
 
 
+        menuTable.setAttribute('style','padding:10px;');
         menuTable.setAttribute('class','tableCustomFunctions');
         menuThead.setAttribute('scope','col');
         menuHeader.innerHTML = 'Funzioni';
@@ -551,7 +572,9 @@ class ZopeJSEnhancerAPI {
                 // al caricamento del frame con lista oggetti
                 console.log("manage_main loaded");
                 console.log(this);
+                // getting the instance updated and edit the references about the object in the main
                 istance.getZopeReferences();
+                instance.getFileListAsJSON();
                 ZopeJSEnhancerAPI.enableSpoilerCode(istance._zope.main.document);
             });
     }
@@ -577,12 +600,13 @@ class ZopeJSEnhancerAPI {
     static enableSpoilerCode(self,toEnable){
         var docInst = self.getZopeMainDocument(),
             winInst = self.getZopeMainWindow(),
-            linkExternalEdit = docInst.querySelectorAll(".list-item a[title='Edit using external editor']");
+            //linkExternalEdit = docInst.querySelectorAll(".list-item a[title='Edit using external editor']");
+            linkExternalEdit = Object.entries(ZopeIstance._zope.mainObjectlist);
         // selezione di tutti gli oggetti, con riga, all'interno del frame manage_main ( lista dei file ) con titolo che indica che sia un file editabile
         linkExternalEdit.forEach(function(item,index){
 
             // prendo il riferimento della riga della lista file
-            var fileRowTr = item.parentElement.parentElement.parentElement,
+            var fileRowTr = item[1].trRef,
                 alreadyCreated = (fileRowTr.querySelector(".show_hide"))?true:false,
                 selectionCell = fileRowTr.firstElementChild;
             if(!alreadyCreated){
@@ -614,7 +638,7 @@ class ZopeJSEnhancerAPI {
 
                 // rispetto alla pagina HTML aggancio un evento alla nuova immagine del tasto "+"
                 docInst.getElementById('el-'+index).addEventListener("click",function(){
-                        ZopeJSEnhancerAPI.showCode(''+item.getAttribute('href')+'',fileRowTr);
+                        ZopeJSEnhancerAPI.showCode(''+item.href+'',fileRowTr);
 //                        var nextRow = fileRowTr.nextElementSibling;
 //                        if(nextRow){
 //                            ZopeJSEnhancerAPI.loadAcefunction(winInst,docInst,nextRow.querySelector("codeEditor"),self.aceConfigLcl,function(){ console.log(arguments)});
@@ -700,7 +724,7 @@ class ZopeJSEnhancerAPI {
 
                     sourceTextArea.setAttribute('id','codeEditor');
                     sourcePre.innerText = "placeholder";
-                    sourcePre.setAttribute('style','overflow-y: scroll;height: 500px');
+                    sourcePre.setAttribute('style','overflow-y: hidden;height: 500px');
 
                     var generatedId = parseInt(Math.random()*1000000);
                     sourcePre.setAttribute('class','codeEditor-'+generatedId);
@@ -805,10 +829,17 @@ class ZopeJSEnhancerAPI {
         var doc = extDoc || document;
         return doc.querySelector('style[id="ace_editor.css"]');
     }
-    getFileListAsJSON(){
-        var tableToProcess =  ((this.getCurrentMainSearch())?ZopeIstance.getZopeMainDocument().querySelectorAll("table")[3]:this.getZopeMainDocument().querySelector('[name="objectItems"] table'));
-        return window.$(tableToProcess).tableToJSON({
-            extractor: function(cellIndex, $cell){
+    searchName(filename){
+        window.$.ajax({
+            url:`manage_findResult?searchtype=simple&obj_metatypes:list=all&obj_ids:tokens=&obj_searchterm=${filename}&obj_mspec=<&obj_mtime=&search_sub:int=1&btn_submit=Find`
+        })
+        .done(function(data, textStatus, jqXHR){
+
+            var html = window.$.parseHTML(data),
+                htmlTables = html.filter(item=>(item.tagName)?item.tagName.toLowerCase() == 'table':false),
+                fileListResult = htmlTables[3];
+            window.$(fileListResult).tableToJSON({
+                extractor: function(cellIndex, $cell){
                     var obj = null,
                         mappedImg = {
                             "pyscript.gif":"python",
@@ -849,6 +880,75 @@ class ZopeJSEnhancerAPI {
                     return obj || $cell.text();
                 }
             });
+        })
+        .fail(function( jqXHR, textStatus, errorThrown ) {
+
+        })
+        .always(function( data, textStatus, jqXHR ) {
+
+        })
+        .then(function( data, textStatus, jqXHR ) {}, function( jqXHR, textStatus, errorThrown ) {
+
+        });
+    }
+    getFileListAsJSON(){
+        var tableToProcess =  ((ZopeIstance.getCurrentMainSearch())?ZopeIstance.getZopeMainDocument().querySelectorAll("table")[3]:this.getZopeMainDocument().querySelector('[name="objectItems"] table'));
+        return window.$(tableToProcess).tableToJSON({
+            extractor: function(cellIndex, $cell){
+                    var obj = null,
+                        rowIndex = $cell.closest("tr").index(),
+                        hasSpoilerClass = ($cell.attr("class")?$cell.attr("class").indexOf("spoiler_cell") !== -1:false),
+                        mappedImg = {
+                            "pyscript.gif":"python",
+                            "Folder_icon.gif":"folder",
+                            "dtmldoc.gif":"dtmldoc",
+                            "dtmlmethod.gif":"dtmlmethod",
+                        };
+
+
+
+
+                    if(!hasSpoilerClass){
+                        /* reading if the image is mapped and there's a type defined for it.*/
+                        if($cell.find('img').length > 0){
+                            for(var image in mappedImg){
+                                if($cell.find('img').attr('src').indexOf(image) !== -1){
+                                    obj = {
+                                            "fileType": mappedImg[image],
+                                            "imageName": $cell.find('img').attr('src')
+                                    };
+                                    break;
+                                }
+                            }
+                        }
+
+                        if($cell.find('a').length > 0 && obj == null){
+                            var getResourcePath = $cell.find('a').attr("href").split("/");
+                            // take off the method call
+                            getResourcePath.pop();
+                            obj = {
+                                    "href":$cell.find('a').attr("href"),
+                                    "label":$cell.text(),
+                                    "loadUrl": ZopeIstance.getResourceURL(getResourcePath.join('/')),
+                                    "saveUrl": ZopeIstance.getResourceURL(getResourcePath.join('/')),
+                            }
+                        }
+                        // init and merge obj
+                        if(!ZopeIstance._zope.mainObjectlist){
+                            ZopeIstance._zope.mainObjectlist = {};
+                        }
+                        if(!ZopeIstance._zope.mainObjectlist[rowIndex]){
+                            ZopeIstance._zope.mainObjectlist[rowIndex] = {};
+                        }
+                        Object.assign(ZopeIstance._zope.mainObjectlist[rowIndex],{"trRef":$cell.closest("tr")});
+                        Object.assign(ZopeIstance._zope.mainObjectlist[rowIndex],obj);
+                        return obj || $cell.text();
+                    } else {
+                        return;
+                    }
+
+                }
+            });
     }
     handleHamburger(){
         var menuBody = this.getCustomMenuBody(),
@@ -875,12 +975,12 @@ class ZopeJSEnhancerAPI {
         }
 
         if(this.burger.state){
-            this.getBurgerIcon().setAttribute("style",`display:${showHide(!this.burger.state)};`);
+            this.getBurgerIcon().setAttribute("style",`display:${showHide(!this.burger.state)};`+'padding:9px;');
             this.getCustomFunctionsTable().setAttribute("style",`display:${showHide(this.burger.state)};`);
             frameset.cols = "200,*";
             this.burger.state = false;
         } else {
-            this.getBurgerIcon().setAttribute("style",`display:${showHide(!this.burger.state)};`);
+            this.getBurgerIcon().setAttribute("style",`display:${showHide(!this.burger.state)};`+'padding:9px;');
             this.getCustomFunctionsTable().setAttribute("style",`display:${showHide(this.burger.state)};`);
             frameset.cols = "50,*";
             this.burger.state = true;
@@ -964,7 +1064,7 @@ class ZopeJSEnhancerAPI {
             // binding eventi al menù
 //            this.menuObjectInit();
             this.generateCustomMenu();
-
+            //this.getFileListAsJSON();
             /*
             quando il menù viene caricato, allora inizializzo il suo contenuto:
             - corpo
@@ -977,7 +1077,7 @@ class ZopeJSEnhancerAPI {
                     // al caricamento del frame con menù
                     console.log("init custom menu");
                     istance.loadDependency.call(istance,istance.zopeMenuDependencies,istance.getCustomMenuDocument(),false);
-
+                    //stance.getFileListAsJSON();
             });
 
 
