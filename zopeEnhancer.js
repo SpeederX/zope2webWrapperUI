@@ -17,6 +17,7 @@ class ZopeJSEnhancerAPI {
         "keyboardHandler": null,
         "showLineNumbers": true,
         "minLines":2,
+        "maxLines":25,
         "hScrollBarAlwaysVisible": false,
         "vScrollBarAlwaysVisible": false,
         "highlightGutterLine": true,
@@ -57,7 +58,7 @@ class ZopeJSEnhancerAPI {
      customMenuConfig = {
         "zopeFrameSet": document.body,
         "triggerAttach": function(){
-            ZopeJSEnhancerAPI.mainObjectInit(this);
+            ZopeJSEnhancerAPI.mainObjectInit();
         },
         "features":{
 //            "codeEditor":{
@@ -122,7 +123,7 @@ class ZopeJSEnhancerAPI {
                 "onChange":function(event){
 
                     var isChecked = event.target.checked;
-                    ZopeJSEnhancerAPI.enableSpoilerCode(ZopeIstance,event.target.checked);
+                    ZopeJSEnhancerAPI.enableSpoilerCode(event.target.checked);
 
 
                 }
@@ -295,6 +296,8 @@ class ZopeJSEnhancerAPI {
                 //console.log("init zope header");
                 istance.overrideHeader();
         });
+        // trigger to attach to menu generation
+        this._zope.extraMenu.triggerAttach();
 
 //		this.addMenuFeatures.call(this,this.getCustomMenuBody());
 //		// al caricamento del frame con menù
@@ -566,16 +569,16 @@ class ZopeJSEnhancerAPI {
         console.log("postLoadOperations");
     }
 
-    static mainObjectInit(istance){
-            // se invece mostriamo la lista dei file
-            istance = istance._zope.main.addEventListener('load',function(){
+    static mainObjectInit(){
+            // lista dei file
+            ZopeIstance._zope.main.addEventListener('load',function(){
                 // al caricamento del frame con lista oggetti
                 console.log("manage_main loaded");
                 console.log(this);
                 // getting the instance updated and edit the references about the object in the main
-                istance.getZopeReferences();
-                instance.getFileListAsJSON();
-                ZopeJSEnhancerAPI.enableSpoilerCode(istance._zope.main.document);
+                ZopeIstance.getZopeReferences();
+                ZopeIstance.getFileListAsJSON();
+                ZopeJSEnhancerAPI.enableSpoilerCode(ZopeIstance._zope.main.document);
             });
     }
     /* inizializza il menù e i suoi eventi*/
@@ -596,73 +599,87 @@ class ZopeJSEnhancerAPI {
             console.log(DOMException);
         }
     }
+    addSpoilerCell(rowRef,idLink){
+        var newA = document.createElement('a'),
+            newImg = document.createElement('img'),
+            newCell = document.createElement('td');
+
+        ZopeJSEnhancerAPI.setAttributes(newImg,{
+                                                    'src':'/p_/pl',
+                                                    'class':'show_hide',
+                                                    'alt':'+',
+                                                    'border':'0',
+                                                });
+
+        newA.setAttribute('id',idLink);
+        newA.setAttribute('href','#');
+        newA.append(newImg);
+        newCell.className = "spoiler_cell";
+        newCell.append(newA);
+        // per il primo child element, in cui esiste la checkbox per selezionare il file, vado in override e metto l'immagine con "+" o "-"
+        rowRef.firstElementChild.after(newCell);
+    }
     /* abilitazione della funzionalità per spoilerare il codice in riga della lista oggetti */
-    static enableSpoilerCode(self,toEnable){
-        var docInst = self.getZopeMainDocument(),
-            winInst = self.getZopeMainWindow(),
+    static enableSpoilerCode(toEnable){
+        var docInst = ZopeIstance.getZopeMainDocument(),
+            winInst = ZopeIstance.getZopeMainWindow(),
             //linkExternalEdit = docInst.querySelectorAll(".list-item a[title='Edit using external editor']");
-            linkExternalEdit = Object.entries(ZopeIstance._zope.mainObjectlist);
+            linkExternalEdit = Object.values(ZopeIstance._zope.mainObjectlist);
         // selezione di tutti gli oggetti, con riga, all'interno del frame manage_main ( lista dei file ) con titolo che indica che sia un file editabile
         linkExternalEdit.forEach(function(item,index){
 
             // prendo il riferimento della riga della lista file
-            var fileRowTr = item[1].trRef,
-                alreadyCreated = (fileRowTr.querySelector(".show_hide"))?true:false,
-                selectionCell = fileRowTr.firstElementChild;
+            var rowRef = item.trRef[0],
+                alreadyCreated = (rowRef.querySelector(".show_hide"))?true:false,
+                idLink = 'el-' + index,
+                fileUrl = item.loadUrl || '',
+                selectionCell = rowRef.firstElementChild;
             if(!alreadyCreated){
-                var newA = document.createElement('a'),
-                    newImg = document.createElement('img'),
-                    newCell = document.createElement('td');
-
-                ZopeJSEnhancerAPI.setAttributes(newImg,{
-                                                            'src':'/p_/pl',
-                                                            'class':'show_hide',
-                                                            'alt':'+',
-                                                            'border':'0',
-                                                        });
-
-                newA.setAttribute('id','el-'+index);
-                newA.setAttribute('href','#');
-                newA.append(newImg);
-                newCell.className = "spoiler_cell";
-                newCell.append(newA);
-                // per il primo child element, in cui esiste la checkbox per selezionare il file, vado in override e metto l'immagine con "+" o "-"
-                fileRowTr.firstElementChild.after(newCell);
+                ZopeIstance.addSpoilerCell(rowRef,idLink);
             }
 
-
-            var showButton = fileRowTr.querySelector(".spoiler_cell");
+            var showButton = rowRef.querySelector(".spoiler_cell");
             if(toEnable){
-                selectionCell.style = "display: none";
-                showButton.style = "display: inline";
-
+//                selectionCell.style = "display: none";
+//                showButton.style = "display: inline";
+                ZopeJSEnhancerAPI.setCssRule(selectionCell,'display','none');
+                ZopeJSEnhancerAPI.setCssRule(showButton,'display','inline');
                 // rispetto alla pagina HTML aggancio un evento alla nuova immagine del tasto "+"
-                docInst.getElementById('el-'+index).addEventListener("click",function(){
-                        ZopeJSEnhancerAPI.showCode(''+item.href+'',fileRowTr);
-//                        var nextRow = fileRowTr.nextElementSibling;
-//                        if(nextRow){
-//                            ZopeJSEnhancerAPI.loadAcefunction(winInst,docInst,nextRow.querySelector("codeEditor"),self.aceConfigLcl,function(){ console.log(arguments)});
-//                        }
+                docInst.getElementById(idLink).addEventListener("click",function(){
+                        ZopeJSEnhancerAPI.showCode(fileUrl,rowRef);
                     },
                 false);
             } else {
-                selectionCell.style = "display: inline";
-                showButton.style = "display: none";
+                ZopeJSEnhancerAPI.setCssRule(selectionCell,'display','inline');
+                ZopeJSEnhancerAPI.setCssRule(showButton,'display','none');
+//                selectionCell.style = "display: inline";
+//                showButton.style = "display: none";
                 // rispetto alla pagina HTML aggancio un evento alla nuova immagine del tasto "+"
-                docInst.getElementById('el-'+index).removeEventListener("click",function(){
-                        ZopeJSEnhancerAPI.showCode(''+item.getAttribute('href')+'',fileRowTr);
-//                        var nextRow = fileRowTr.nextElementSibling;
-//                        if(nextRow){
-//                            ZopeJSEnhancerAPI.loadAcefunction(winInst,docInst,nextRow.querySelector("codeEditor"),self.aceConfigLcl,function(){ console.log(arguments)});
-//                        }
-                        //ZopeJSEnhancerAPI.loadAcefunction(winInst,docInst,fileRowTr.nextSibling.querySelector("codeEditor"),self.aceConfigLcl,function(){ console.log(arguments)});
-                    },
+                docInst.getElementById(idLink).removeEventListener("click",function(){
+                        ZopeJSEnhancerAPI.showCode(fileUrl,rowRef);},
                 false);
             }
-
-
-
-        })
+        });
+    }
+    static setCssRule(el,ruleToSet,value){
+        let rules = Object.values(el.style),
+            ruleOrig = rules.filter(rule=>(rule==ruleToSet?ZopeJSEnhancerAPI.replaceCssRule(el,ruleToSet,value):false));
+        if(!ruleOrig || ruleOrig.length == 0){
+            el.style[ruleToSet] = value;
+            return true;
+        } else {
+            return false;
+        }
+    }
+    static replaceCssRule(el,ruleToChange,newValue){
+        let rules = Object.values(el.style),
+            ruleOrig = rules.filter(rule=>(rule==ruleToChange?true:false));
+        if(ruleOrig){
+            el.style[ruleToChange] = newValue;
+            return true;
+        } else {
+            return false;
+        }
     }
     static aceAsyncLoadfunction(path, callback) {
             // getting the object to append ace source
@@ -679,6 +696,28 @@ class ZopeJSEnhancerAPI {
                 }
             };
     }
+    static divEditorBase = `overflow-y: hidden;
+                    overflow-y: hidden;
+                    border: 5px solid #777;
+                    color: #f00;
+                    align-items: center;
+                    display: flex;
+                    flex-direction: column;
+                    flex-wrap: wrap;
+                    padding: 5px;
+                    background-color: darkgray;
+                    border-radius: 25px;`;
+    static divEditorActive = `overflow-y: hidden;
+                    overflow-y: hidden;
+                    border: 5px solid red;
+                    color: #f00;
+                    align-items: center;
+                    display: flex;
+                    flex-direction: column;
+                    flex-wrap: wrap;
+                    padding: 5px;
+                    background-color: orange;
+                    border-radius: 25px;`;
     static loadAcefunction(win,doc,textArea,options, callback) {
         var w = win;
 
@@ -717,19 +756,31 @@ class ZopeJSEnhancerAPI {
 
                     var sourceTd = document.createElement('td'),
                         sourceTextArea = document.createElement('textarea'),
-                        sourcePre = document.createElement('pre'),
+                        sourceDivEditor = document.createElement('div'),
                         sourceCode = document.createElement('code');
 
                     sourceTd.setAttribute('colspan','5');
 
                     sourceTextArea.setAttribute('id','codeEditor');
-                    sourcePre.innerText = "placeholder";
-                    sourcePre.setAttribute('style','overflow-y: hidden;height: 500px');
+//                    sourceDivEditor.innerText = "placeholder";
+                    var divEditorStyles = '';
+//                    divEditorStyles += 'overflow-y: hidden;';
+//                    // divEditorStyles += 'height: 700px;';
+//                    divEditorStyles += 'overflow-y: hidden;';
+//                    divEditorStyles += 'border: 5px solid #777;';
+//                    divEditorStyles += 'color: #f00;';
+//                    divEditorStyles += 'align-items: center;';
+//                    divEditorStyles += 'display: flex;';
+//                    divEditorStyles += 'flex-direction: column;';
+//                    divEditorStyles += 'flex-wrap: wrap;';
+//                    divEditorStyles += 'padding: 5px;';
+//                    divEditorStyles += 'background-color: darkgray;';
+//                    divEditorStyles += 'border-radius: 25px;';
+                    sourceDivEditor.setAttribute('style',ZopeJSEnhancerAPI.divEditorActive);
 
                     var generatedId = parseInt(Math.random()*1000000);
-                    sourcePre.setAttribute('class','codeEditor-'+generatedId);
-
-                    sourceTd.append(sourcePre);
+                    sourceDivEditor.setAttribute('class','codeEditor-'+generatedId);
+                    sourceTd.append(sourceDivEditor);
 
                     var saveBtn = document.createElement("button"),
                         showDiff = document.createElement("button"),
@@ -737,12 +788,12 @@ class ZopeJSEnhancerAPI {
                         aceDiffDiv = document.createElement("div");
 
 
-                    aceDiffDiv.setAttribute('class','codeDiff-'+generatedId);
+//                    aceDiffDiv.setAttribute('class','codeDiff-'+generatedId);
 
-                    saveBtn.innerText = 'Salva';
-                    showDiff.innerText = 'Diff';
-                    showDiff.onclick = function(ev){
-                    debugger;
+//                    saveBtn.innerText = 'Salva';
+//                    showDiff.innerText = 'Diff';
+//                    showDiff.onclick = function(ev){
+//                    debugger;
 //                        new AceDiff({
 //                            ace: window.ace, // You Ace Editor instance
 //                            element: this.className,
@@ -753,13 +804,13 @@ class ZopeJSEnhancerAPI {
 //                                content: 'your second file content here',
 //                            },
 //                        });
-                    };
-                    rollbackModification.innerText = 'Ripristina';
+//                    };
+//                    rollbackModification.innerText = 'Ripristina';
 
-                    sourceTd.append(aceDiffDiv);
-                    sourceTd.append(saveBtn);
-                    sourceTd.append(showDiff);
-                    sourceTd.append(rollbackModification);
+//                    sourceTd.append(aceDiffDiv);
+//                    sourceTd.append(saveBtn);
+//                    sourceTd.append(showDiff);
+//                    sourceTd.append(rollbackModification);
 
                     tr.nextElementSibling.append(sourceTd);
 
@@ -769,14 +820,56 @@ class ZopeJSEnhancerAPI {
                     imgToUpdate.setAttribute('alt','-');
                     imgToUpdate.setAttribute('display','block');
 
-                    // finally creating the text area with ace and assigning to global istance.
-                    var newAceIstance = window.ace.edit(sourcePre,ZopeJSEnhancerAPI.aceConfigLcl);
 
-                    newAceIstance.setValue(xhttp.responseText);
+
+                    // finally creating the text area with ace and assigning to global istance.
+
+//                    window.$(aceDiffDiv).html(xhttp.responseText);
+                    //window.$(sourceDivEditor).html(xhttp.responseText);
+                    var respBody = xhttp.responseText.split("</head>")[1].split("</html>")[0];
+
+                    var parser = new DOMParser();
+                    var htmlDoc = parser.parseFromString(respBody,"text/html"),
+                        htmlBody = htmlDoc[2],
+                        sourceCodeRes = htmlDoc.body.querySelector("textarea").innerText,
+                        titleSpan = document.createElement('span'),
+                        fileName = tr.querySelectorAll("a").item(2).innerText.trim();
+                    tr.nextElementSibling.querySelector('.codeEditor-'+generatedId).innerHTML = htmlDoc.body.innerHTML;
+                    titleSpan.setAttribute('style','font-size: 20px;color: #fff;background-color: #f00;');
+                    titleSpan.innerText = fileName;
+                    tr.nextElementSibling.querySelector('.codeEditor-'+generatedId).prepend(titleSpan);
+
+//                    var formEditor
+//                    ZopeJSEnhancerAPI.setAttributes(formEditor,{
+//                    "action":"manage_edit",
+//                    "method":"post"
+//                    });
+//                    var formEditor = tr.nextElementSibling.querySelector('form [action="manage_edit"]'),
+                    var textEditor = tr.nextElementSibling.querySelector("textarea"),
+                        textParent = textEditor.parentElement,
+                        ta = document.createElement("textarea");
+                    textParent.setAttribute('class','text_container');
+                    textEditor.remove();
+                    textParent.append(ta);
+//                    sourceTextArea.setAttribute('name','data:text');
+//                    formEditor.append(sourceTextArea);
+                    var newAceIstance = window.ace.edit(ta,ZopeJSEnhancerAPI.aceConfigLcl);
+                    newAceIstance.setValue(sourceCodeRes);
                     if(!ZopeIstance.aceSession){
                         ZopeIstance.aceSession = {}
                     }
                     ZopeIstance.aceSession[generatedId] = newAceIstance;
+                    /* handling when the user does focus the editor. Set class "active editor" to current */
+                    newAceIstance.on('focus',function(event){
+                        var aceEditor = event.target,
+                            editorContainer = aceEditor.closest('div'),
+                            itemList = editorContainer.closest('[name="objectItems"]')
+                            openedEditorContainers = itemList.querySelectorAll('.sourceCode div');
+
+                        openedEditorContainers.setAttribute('style',ZopeJSEnhancerAPI.divEditorBase);
+
+                        editorContainer.setAttribute('style',ZopeJSEnhancerAPI.divEditorActive);
+                    });
 
                     // important fix to handle frames in zope manage
                     // Ace does adds inline defined CSS in the main doc <head>
@@ -821,6 +914,32 @@ class ZopeJSEnhancerAPI {
             return true;
         }
         return false;
+    }
+    compareFormatting(){
+        var tab = document.querySelectorAll('table')[3];
+        tab.border = 0;
+        tab.style = 'border:1px solid #777;';
+        tab.querySelectorAll('td').forEach(function(item,index){
+            if(index%2==0){
+                var t = item.innerText.split('\n');
+                t.pop();
+                if(t.length > 0){
+                    item.parentElement.setAttribute('class','parsedTR');
+                    item.parentElement.setAttribute('style','border: 1px solid #F00;');
+                }
+                t.forEach(function(item,index){
+                    if(item == '-') {
+                        t[index] = '<span style="color:#F00;background-color:#f77;">' + item + '</span>';
+                    } else {
+                        t[index] = '<span style="color:#0F0;background-color:#7f7;">' + item + '</span>';
+                    }
+                });
+                item.innerHTML = t.join('\n');
+                item.setAttribute('class','diffCell-'+item.parentElement.rowIndex);
+            } else {
+                item.setAttribute('class','codeCell-'+item.parentElement.rowIndex);
+            }
+        });
     }
     checkCssInjection(doc){
         return ((this.getAceInlineCSS(doc))?true:false);
@@ -892,7 +1011,7 @@ class ZopeJSEnhancerAPI {
         });
     }
     getFileListAsJSON(){
-        var tableToProcess =  ((ZopeIstance.getCurrentMainSearch())?ZopeIstance.getZopeMainDocument().querySelectorAll("table")[3]:this.getZopeMainDocument().querySelector('[name="objectItems"] table'));
+        var tableToProcess =  ((this.getCurrentMainSearch())?this.getZopeMainDocument().querySelectorAll("table")[3]:this.getZopeMainDocument().querySelector('[name="objectItems"] table'));
         return window.$(tableToProcess).tableToJSON({
             extractor: function(cellIndex, $cell){
                     var obj = null,
@@ -904,10 +1023,6 @@ class ZopeJSEnhancerAPI {
                             "dtmldoc.gif":"dtmldoc",
                             "dtmlmethod.gif":"dtmlmethod",
                         };
-
-
-
-
                     if(!hasSpoilerClass){
                         /* reading if the image is mapped and there's a type defined for it.*/
                         if($cell.find('img').length > 0){
@@ -929,8 +1044,8 @@ class ZopeJSEnhancerAPI {
                             obj = {
                                     "href":$cell.find('a').attr("href"),
                                     "label":$cell.text(),
-                                    "loadUrl": ZopeIstance.getResourceURL(getResourcePath.join('/')),
-                                    "saveUrl": ZopeIstance.getResourceURL(getResourcePath.join('/')),
+                                    "loadUrl": ZopeIstance.getResourceWorkspace(getResourcePath.join('/')),
+                                    "saveUrl": ZopeIstance.getResourceWorkspace(getResourcePath.join('/')),
                             }
                         }
                         // init and merge obj
@@ -940,7 +1055,9 @@ class ZopeJSEnhancerAPI {
                         if(!ZopeIstance._zope.mainObjectlist[rowIndex]){
                             ZopeIstance._zope.mainObjectlist[rowIndex] = {};
                         }
-                        Object.assign(ZopeIstance._zope.mainObjectlist[rowIndex],{"trRef":$cell.closest("tr")});
+                        Object.assign(ZopeIstance._zope.mainObjectlist[rowIndex],{
+                            "trRef":$cell.closest("tr")
+                        });
                         Object.assign(ZopeIstance._zope.mainObjectlist[rowIndex],obj);
                         return obj || $cell.text();
                     } else {
@@ -992,8 +1109,18 @@ class ZopeJSEnhancerAPI {
     getBurgerIcon(){
         return this.getCustomMenuBody().querySelector(".magicBurger");
     }
+    getCurrRelPath(doc){
+        var path = doc.baseURI.split("/");
+            // get last name off
+            path.pop();
+            //reconstruct url
+            return path.join("/");
+    }
     getResourceURL(resource){
-        return window.location.origin + "/" + resource ;
+        return this.getCurrRelPath(this.getZopeMainDocument()) + "/" + resource ;
+    }
+    getResourceWorkspace(resource){
+        return this.getCurrRelPath(this.getZopeMainDocument()) + "/" + resource + "/manage_main";
     }
     getLastArrEl(arr){
         return arr.slice(-1)[0];
@@ -1071,18 +1198,20 @@ class ZopeJSEnhancerAPI {
             - dipendenze nell'head
             */
             this.getCustomMenu().addEventListener('load',function(){
-
-
                     istance.handleHamburger.call(istance);
                     // al caricamento del frame con menù
                     console.log("init custom menu");
-                    istance.loadDependency.call(istance,istance.zopeMenuDependencies,istance.getCustomMenuDocument(),false);
+                    istance.loadDependency.call(istance,istance.zopeMenuDependencies,istance.getCustomMenuDocument(),true);
                     //stance.getFileListAsJSON();
             });
 
 
         } else {
             this.postLoadOperationsCounter++;
+//            if(!this._zope.mainObjectlist){
+//            //debugger;
+//                this.getFileListAsJSON();
+//            }
         }
 
     };
