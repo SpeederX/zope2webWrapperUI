@@ -763,7 +763,7 @@ class ZopeJSEnhancerAPI {
 
                     sourceTextArea.setAttribute('id','codeEditor');
 //                    sourceDivEditor.innerText = "placeholder";
-                    var divEditorStyles = '';
+//                    var divEditorStyles = '';
 //                    divEditorStyles += 'overflow-y: hidden;';
 //                    // divEditorStyles += 'height: 700px;';
 //                    divEditorStyles += 'overflow-y: hidden;';
@@ -776,10 +776,10 @@ class ZopeJSEnhancerAPI {
 //                    divEditorStyles += 'padding: 5px;';
 //                    divEditorStyles += 'background-color: darkgray;';
 //                    divEditorStyles += 'border-radius: 25px;';
-                    sourceDivEditor.setAttribute('style',ZopeJSEnhancerAPI.divEditorActive);
+//                    sourceDivEditor.setAttribute('style',ZopeJSEnhancerAPI.divEditorActive);
 
                     var generatedId = parseInt(Math.random()*1000000);
-                    sourceDivEditor.setAttribute('class','codeEditor-'+generatedId);
+                    sourceDivEditor.setAttribute('class','codeEditor-' + generatedId + ' divEditor');
                     sourceTd.append(sourceDivEditor);
 
                     var saveBtn = document.createElement("button"),
@@ -833,11 +833,24 @@ class ZopeJSEnhancerAPI {
                         htmlBody = htmlDoc[2],
                         sourceCodeRes = htmlDoc.body.querySelector("textarea").innerText,
                         titleSpan = document.createElement('span'),
-                        fileName = tr.querySelectorAll("a").item(2).innerText.trim();
-                    tr.nextElementSibling.querySelector('.codeEditor-'+generatedId).innerHTML = htmlDoc.body.innerHTML;
+                        fileName = tr.querySelectorAll("a").item(2).innerText.trim(),
+                        divEditorContainer = tr.nextElementSibling.querySelector('.codeEditor-'+generatedId),
+                        itemList = divEditorContainer.closest('[name="objectItems"]'),
+                        openedEditorContainers = itemList.querySelectorAll('.sourceCode div');
+
+                    // init
+                    ZopeIstance.divActiveSessions = ZopeIstance.divActiveSessions || [];
+                    ZopeIstance.divActiveSessions.push(divEditorContainer);
+
+                    divEditorContainer.innerHTML = htmlDoc.body.innerHTML;
                     titleSpan.setAttribute('style','font-size: 20px;color: #fff;background-color: #f00;');
                     titleSpan.innerText = fileName;
-                    tr.nextElementSibling.querySelector('.codeEditor-'+generatedId).prepend(titleSpan);
+
+
+                    divEditorContainer.prepend(titleSpan);
+
+                    ZopeIstance.setStyleEditors(ZopeJSEnhancerAPI.divEditorBase);
+                    divEditorContainer.setAttribute('style',ZopeJSEnhancerAPI.divEditorActive);
 
 //                    var formEditor
 //                    ZopeJSEnhancerAPI.setAttributes(formEditor,{
@@ -862,11 +875,12 @@ class ZopeJSEnhancerAPI {
                     /* handling when the user does focus the editor. Set class "active editor" to current */
                     newAceIstance.on('focus',function(event){
                         var aceEditor = event.target,
-                            editorContainer = aceEditor.closest('div'),
-                            itemList = editorContainer.closest('[name="objectItems"]')
+                            editorContainer = aceEditor.closest('div.divEditor'),
+                            itemList = editorContainer.closest('[name="objectItems"]'),
                             openedEditorContainers = itemList.querySelectorAll('.sourceCode div');
 
-                        openedEditorContainers.setAttribute('style',ZopeJSEnhancerAPI.divEditorBase);
+
+                        ZopeIstance.setStyleEditors(ZopeJSEnhancerAPI.divEditorBase);
 
                         editorContainer.setAttribute('style',ZopeJSEnhancerAPI.divEditorActive);
                     });
@@ -895,6 +909,12 @@ class ZopeJSEnhancerAPI {
                 imgToUpdate.setAttribute('alt','-');
             }
         }
+    }
+    setStyleEditors(style){
+        //var openedEditors = ZopeIstance.getZopeMainDocument().querySelectorAll('.sourceCode div');
+        ZopeIstance.divActiveSessions.forEach(function(item,index){
+            item.setAttribute('style',style);
+        });
     }
     /* lista delle voci di menù, espandibili */
     getMenuExplode(){
