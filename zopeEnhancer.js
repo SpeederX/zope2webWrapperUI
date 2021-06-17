@@ -579,6 +579,8 @@ class ZopeJSEnhancerAPI {
                 ZopeIstance.getZopeReferences();
                 ZopeIstance.getFileListAsJSON();
                 ZopeJSEnhancerAPI.enableSpoilerCode(ZopeIstance._zope.main.document);
+                ZopeIstance.initTabSessionManager();
+                ZopeIstance.addNewSession(ZopeIstance.getZopeHeaderDocument(),'File list');
             });
     }
     /* inizializza il menù e i suoi eventi*/
@@ -910,6 +912,53 @@ class ZopeJSEnhancerAPI {
             }
         }
     }
+    getSessionManager(){
+        var sessionManager = ZopeIstance.getZopeMainDocument().querySelector('body .tabSessionManager') || null;
+        return ZopeIstance.getZopeMainDocument().querySelector('body .tabSessionManager');
+    }
+    countActiveSessions(){
+        var sessionManager = ZopeIstance.getSessionManager();
+        if(sessionManager == null){
+           return 0;
+        }
+        return ZopeIstance.sessionManager.sessionIstances.length;
+    }
+    initTabSessionManager(){
+        ZopeIstance.sessionManager = {
+            sessionIstances:[],
+            sessionTabActive:null,
+            sessionNotSaved:[]
+        }
+        var sessionManager = document.createElement('div');
+        sessionManager.setAttribute('class','tabSessionManager');
+        sessionManager.setAttribute('style','display: flex;flex-direction: row;');
+        ZopeIstance.getZopeMainDocument().querySelector('body').prepend(sessionManager);
+    }
+    addNewSession(objref,sessionTitle){
+        var sessionManager = ZopeIstance.getSessionManager(),
+            objref = objref || null,
+            sessionTitle = sessionTitle || 'Session ' + ( ZopeIstance.countActiveSessions() + 1 ) || 'Session',
+            sessionCurrent = document.createElement('div');
+
+        if(sessionManager == null){
+            ZopeIstance.initTabSessionManager();
+        }
+
+        // creating new session and storaging information about it on the parent
+        sessionCurrent.setAttribute('style','height: 30px;background-color: #777;border-radius: 25px;padding: 10px;width: 75px;');
+        sessionCurrent.innerText = sessionTitle;
+
+        sessionManager.append(sessionCurrent);
+//        sessionManager.prepend(sessionManager);
+
+        ZopeIstance.sessionManager.sessionIstances.push({
+            "sessionIstance":sessionCurrent,
+            "sessionTitle":sessionTitle
+        });
+        ZopeIstance.sessionManager.sessionTabActive = sessionCurrent;
+
+    }
+
     setStyleEditors(style){
         //var openedEditors = ZopeIstance.getZopeMainDocument().querySelectorAll('.sourceCode div');
         ZopeIstance.divActiveSessions.forEach(function(item,index){
@@ -1222,6 +1271,7 @@ class ZopeJSEnhancerAPI {
                     // al caricamento del frame con menù
                     console.log("init custom menu");
                     istance.loadDependency.call(istance,istance.zopeMenuDependencies,istance.getCustomMenuDocument(),true);
+
                     //stance.getFileListAsJSON();
             });
 
